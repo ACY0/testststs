@@ -1,83 +1,104 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Survey Status Counter", page_icon="📊", layout="centered")
+# Sayfa Ayarları
+st.set_page_config(
+    page_title="Survey Status Dashboard",
+    page_icon="📊",
+    layout="centered"
+)
+
+# Minimal CSS
+st.markdown("""
+    <style>
+        .main-title {
+            text-align: center;
+            font-size: 34px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .sub-title {
+            text-align: center;
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+        .card {
+            padding: 24px;
+            border-radius: 14px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+        .sent {
+            background: linear-gradient(145deg, #e8f1ff, #ffffff);
+        }
+        .completed {
+            background: linear-gradient(145deg, #e9f9f0, #ffffff);
+        }
+        .count {
+            font-size: 42px;
+            font-weight: 800;
+            margin-top: 10px;
+        }
+        .label {
+            font-size: 15px;
+            letter-spacing: 1px;
+            color: #6b7280;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # Başlık
-st.title("📊 Survey Status Counter")
-st.write("Excel (.xlsx) dosyanı yükle, ben de D sütunundaki **Sent / Completed** sayılarını sayayım.")
+st.markdown('<div class="main-title">Survey Status Dashboard</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Upload your Excel file – We analyze column D automatically</div>', unsafe_allow_html=True)
 
-# Dosya yükleme
-uploaded_file = st.file_uploader("Excel dosyanızı (.xlsx) yükleyin", type=["xlsx"])
+# Dosya Yükleme
+uploaded_file = st.file_uploader("Upload Excel File (.xlsx)", type=["xlsx"])
 
-if uploaded_file is not None:
+if uploaded_file:
     try:
-        # Excel'i oku
         df = pd.read_excel(uploaded_file)
 
-        # En az 4 sütun var mı kontrolü
         if df.shape[1] < 4:
-            st.error("Bu dosyada 4 sütun yok. Lütfen D sütununda survey durumu olan bir dosya yükleyin.")
+            st.error("The uploaded Excel file must contain at least 4 columns.")
         else:
-            # D sütununu (index 3) al
             status_col = df.iloc[:, 3]
+            status_clean = status_col.astype(str).str.strip().str.lower()
 
-            # Metin haline getir, sağ/sol boşlukları temizle, küçük harfe çevir
-            status_normalized = status_col.astype(str).str.strip().str.lower()
+            sent_count = (status_clean == "sent").sum()
+            completed_count = (status_clean == "completed").sum()
+            total = len(status_clean)
 
-            # Sayımlar
-            sent_count = (status_normalized == "sent").sum()
-            completed_count = (status_normalized == "completed").sum()
-
-            total_rows = len(status_col)
-
-            st.divider()
-
-            st.subheader("🔎 Sonuçlar")
-
-            # 2 sütunlu layout
+            st.write("")
             col1, col2 = st.columns(2)
 
             with col1:
-                # Sent (mavi)
-                st.markdown(
-                    f"""
-                    <div style="background-color:#e8f2ff; padding:15px; border-radius:10px; text-align:center;">
-                        <div style="font-size:40px;">📤</div>
-                        <div style="font-size:18px; font-weight:bold; color:#1f6feb;">Sent</div>
-                        <div style="font-size:26px; font-weight:bold; color:#1f6feb;">{sent_count}</div>
+                st.markdown(f"""
+                    <div class="card sent">
+                        <div class="label">SENT</div>
+                        <div class="count" style="color:#2563eb;">{sent_count}</div>
+                        <div style="font-size:28px;">📤</div>
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                """, unsafe_allow_html=True)
 
             with col2:
-                # Completed (yeşil)
-                st.markdown(
-                    f"""
-                    <div style="background-color:#e7f8ec; padding:15px; border-radius:10px; text-align:center;">
-                        <div style="font-size:40px;">✅</div>
-                        <div style="font-size:18px; font-weight:bold; color:#1a7f37;">Completed</div>
-                        <div style="font-size:26px; font-weight:bold; color:#1a7f37;">{completed_count}</div>
+                st.markdown(f"""
+                    <div class="card completed">
+                        <div class="label">COMPLETED</div>
+                        <div class="count" style="color:#15803d;">{completed_count}</div>
+                        <div style="font-size:28px;">✅</div>
                     </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                """, unsafe_allow_html=True)
 
             st.write("")
-            st.caption(f"Toplam satır: **{total_rows}** (D sütunundaki hücre sayısı)")
+            st.caption(f"Total rows analyzed: {total}")
 
-            # Küçük bir özet tablo
-            st.write("📋 Özet tablo:")
-            summary_df = pd.DataFrame(
-                {
-                    "Status": ["Sent", "Completed"],
-                    "Count": [sent_count, completed_count],
-                }
-            )
-            st.table(summary_df)
+            # Alt özet bar
+            progress = int((completed_count / total) * 100) if total > 0 else 0
+            st.progress(progress)
+
+            st.caption(f"Completion Rate: {progress}%")
 
     except Exception as e:
-        st.error(f"Bir hata oluştu: {e}")
+        st.error(f"Processing error: {e}")
 else:
-    st.info("Lütfen önce bir Excel dosyası yükleyin.")
+    st.info("Please upload an Excel file to start analysis.")
